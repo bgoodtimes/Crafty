@@ -118,6 +118,9 @@ resolves under `config/addons/crafty/`) for sharing a set of Horizon fixes.
   - **make all N: cost** — total material cost to use up your inventory
   - once the result price is also set: **sell / margin per synth**, and
     **use it all** total profit if you craft every synth your inventory allows
+  - **edit price** button on the sell line — set the result item's per-unit
+    price right there, no need to open config (works on the "set the result
+    price for margin" line too, before any price is entered)
 
 Cost model: a success costs crystal + all ingredients; a failure costs crystal +
 only the materials in the `lost` list (the rest come back). Revenue is the

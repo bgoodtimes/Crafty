@@ -2,6 +2,14 @@
 
 All notable changes to crafty are recorded here.
 
+## [2.3.0] - 2026-09-05
+
+### Added
+- **edit price** button on a recipe's sell/margin line on the main window -
+  set the result item's per-unit price inline, without opening `/crafty
+  config`. Also appears on the "set the result price for margin" line when
+  no price is set yet.
+
 ## [2.2.1] - 2026-09-05
 
 ### Fixed

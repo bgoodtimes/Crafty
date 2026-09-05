@@ -1,6 +1,6 @@
 addon.name    = 'crafty'
 addon.author  = 'lin (xitools); standalone port'
-addon.version = '2.2.1'
+addon.version = '2.3'
 addon.desc    = 'A crafting skill tracker and recipe list'
 
 require('common')
@@ -97,6 +97,7 @@ local CraftyPrint          -- defined lower; chat helper
 local InvalidatePriceRefs  -- defined lower; drops cached price-grid InputInt refs
 local priceLog = { false } -- /crafty pricelog: dump text_in lines to a file
 local recipeEditState = {} -- [recipeKey] = { open, count = {n}, name = {''} }  transient
+local sellEditState = {}    -- [recipeKey] = { ref = { gil } }  inline result-price editor
 
 -- gil-on-hand tracking. The baseline (sessionGil0) is taken a couple of seconds
 -- after a character is loaded and their gil has settled, so a mid-zone-in
@@ -441,6 +442,34 @@ local function DrawOutputEditor(recipe, res)
     imgui.Unindent()
 end
 
+-- "[edit price]" toggle for the result item's per-unit sell price, shown on the
+-- same line as the sell/margin figure so you don't have to open config.
+-- scopeKey keeps the open-state tied to this specific recipe view.
+local function DrawSellPriceEditor(scopeKey, eResult)
+    local st = sellEditState[scopeKey]
+    imgui.SameLine()
+    if imgui.SmallButton((st and 'done##selltoggle' or 'edit price##selltoggle')) then
+        if st then
+            sellEditState[scopeKey] = nil
+        else
+            sellEditState[scopeKey] = { ref = { (economy.price_of(eResult)) } }
+        end
+        st = sellEditState[scopeKey]
+    end
+    if st == nil then return end
+
+    imgui.Indent()
+    imgui.PushItemWidth(90)
+    local nm = economy.item_name(eResult) or ('#' .. eResult)
+    if imgui.InputInt(nm .. ' each##sellprice', st.ref) then
+        if st.ref[1] < 0 then st.ref[1] = 0 end
+        economy.set_price(eResult, st.ref[1])
+        InvalidatePriceRefs()
+    end
+    imgui.PopItemWidth()
+    imgui.Unindent()
+end
+
 -- One "(count) name  price" line. If the item is itself a recipe result, it's
 -- an expandable node - opening it drills straight into that item's own
 -- recipe(s), right there, instead of having to search for it separately.
@@ -603,6 +632,7 @@ DrawRecipe = function(recipe, skills, inv, res, seenKeys, depth)
             imgui.TreeNodeEx(('sell %s   margin %s per synth'):format(
                 economy.gil(econ.revenue), economy.gil(margin)), imguiLeafNode)
             imgui.PopStyleColor()
+            DrawSellPriceEditor(myKey, eResult)
             if makeable > 0 then
                 local batch = margin * makeable
                 imgui.PushStyleColor(ImGuiCol_Text, theme.state_color(batch >= 0 and 'good' or 'bad'))
@@ -614,6 +644,7 @@ DrawRecipe = function(recipe, skills, inv, res, seenKeys, depth)
             imgui.PushStyleColor(ImGuiCol_Text, theme.colors.text_dim)
             imgui.TreeNodeEx('set the result price for margin', imguiLeafNode)
             imgui.PopStyleColor()
+            DrawSellPriceEditor(myKey, eResult)
         end
     elseif econ.cost > 0 then
         -- partial: show what we have and how many inputs still need a price
