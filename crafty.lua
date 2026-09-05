@@ -1,6 +1,6 @@
 addon.name    = 'crafty'
 addon.author  = 'lin (xitools); standalone port'
-addon.version = '2.0'
+addon.version = '2.1'
 addon.desc    = 'A crafting skill tracker and recipe list'
 
 require('common')
@@ -301,6 +301,42 @@ local function RecipeByKey(key)
     return recipeByKey[key]
 end
 
+-- lazy result-item-id -> recipe(s) that produce it, built on first drill-down.
+-- Keyed by the base data's own result (not any output override) - overrides
+-- don't change what's craftable, only what a specific recipe is speculated to
+-- yield.
+local recipesByResult = nil
+local function RecipesForItem(itemId)
+    if recipesByResult == nil then
+        recipesByResult = {}
+        for _, chunk in ipairs(recipesBySkill) do
+            for _, r in ipairs(chunk) do
+                local list = recipesByResult[r.result]
+                if list == nil then
+                    list = {}
+                    recipesByResult[r.result] = list
+                end
+                list[#list + 1] = r
+            end
+        end
+    end
+    return recipesByResult[itemId]
+end
+
+-- price suffix: shows an item's entered price, or flags it as missing
+local function priceTag(id)
+    local price, priced = economy.price_of(id)
+    if priced then return '   ' .. economy.gil(price) end
+    return '   (no price)'
+end
+
+-- forward-declared: DrawIngredientLine and DrawRecipe recurse into each other
+-- (an ingredient line drills into that item's own recipe, which has its own
+-- ingredient lines, ...)
+local DrawRecipe
+
+local MAX_DRILLDOWN_DEPTH = 5 -- backstop against a pathological/cyclic recipe chain
+
 local FAVORITES_MAX = 15
 
 local function IsFavorite(key)
@@ -422,15 +458,74 @@ local function DrawOutputEditor(recipe, res)
     imgui.Unindent()
 end
 
-local function DrawRecipe(recipe, skills, inv, res)
+-- One "(count) name  price" line. If the item is itself a recipe result, it's
+-- an expandable node - opening it drills straight into that item's own
+-- recipe(s), right there, instead of having to search for it separately.
+-- idSuffix must be unique among sibling lines in the same parent (an item id
+-- can repeat within one recipe's ingredient list, e.g. 3x of the same item).
+local function DrawIngredientLine(itemId, count, idSuffix, res, skills, inv, seenKeys, depth)
+    local name = res:GetItemById(itemId).LogNameSingular[1] or tostring(itemId)
+    local label = ('(%3i) %s%s'):format(count, name, priceTag(itemId))
+    local color = count > 0 and theme.colors.text_light or theme.colors.text_dim
+    local recipes = (depth < MAX_DRILLDOWN_DEPTH) and RecipesForItem(itemId) or nil
+
+    if recipes == nil or #recipes == 0 then
+        imgui.PushStyleColor(ImGuiCol_Text, color)
+        imgui.TreeNodeEx(label, imguiLeafNode)
+        imgui.PopStyleColor()
+        return
+    end
+
+    imgui.PushID(idSuffix)
+    imgui.PushStyleColor(ImGuiCol_Text, color)
+    local open = imgui.TreeNode(label)
+    imgui.PopStyleColor()
+
+    if open then
+        imgui.Indent()
+        for i, sub in ipairs(recipes) do
+            local subKey = RecipeKey(sub.crystal, sub.ingredients)
+            local drawInline = function()
+                if seenKeys[subKey] then
+                    imgui.PushStyleColor(ImGuiCol_Text, theme.colors.text_dim)
+                    imgui.TreeNodeEx('(already shown above - would loop)', imguiLeafNode)
+                    imgui.PopStyleColor()
+                else
+                    DrawRecipe(sub, skills, inv, res, seenKeys, depth + 1)
+                end
+            end
+            if #recipes == 1 then
+                drawInline()
+            else
+                local eResult, eCount = EffectiveOutput(sub)
+                local subName = res:GetItemById(eResult).LogNameSingular[1] or tostring(eResult)
+                imgui.PushID(i)
+                if imgui.TreeNode(('recipe %i: %s x%i'):format(i, subName, eCount)) then
+                    drawInline()
+                    imgui.TreePop()
+                end
+                imgui.PopID()
+            end
+        end
+        imgui.Unindent()
+        imgui.TreePop()
+    end
+    imgui.PopID()
+end
+
+DrawRecipe = function(recipe, skills, inv, res, seenKeys, depth)
+    seenKeys = seenKeys or {}
+    depth = depth or 0
+    local myKey = RecipeKey(recipe.crystal, recipe.ingredients)
+    seenKeys[myKey] = true
+
     DrawOutputEditor(recipe, res)
 
     -- favourite toggle
-    local favKey = RecipeKey(recipe.crystal, recipe.ingredients)
-    local isFav = IsFavorite(favKey)
+    local isFav = IsFavorite(myKey)
     imgui.PushStyleColor(ImGuiCol_Text, isFav and theme.colors.text_gold or theme.colors.text_dim)
     if imgui.SmallButton((isFav and 'remove from favorites' or 'add to favorites') .. '##fav') then
-        ToggleFavorite(favKey)
+        ToggleFavorite(myKey)
     end
     imgui.PopStyleColor()
 
@@ -464,28 +559,17 @@ local function DrawRecipe(recipe, skills, inv, res)
         imgui.PopStyleColor()
     end
 
-    -- price suffix: shows each item's entered price, or flags it as missing
-    local function priceTag(id)
-        local price, priced = economy.price_of(id)
-        if priced then return '   ' .. economy.gil(price) end
-        return '   (no price)'
-    end
-
-    -- finally the ingredient list begins with the crystal
+    -- finally the ingredient list begins with the crystal - each line drills
+    -- into that item's own recipe if it has one (crystals never do). depth is
+    -- NOT incremented here; DrawIngredientLine bumps it only when it actually
+    -- recurses into a sub-recipe, so depth counts recipe levels, not lines.
     local crystalCount = inv[recipe.crystal] or 0
-    local crystalName = res:GetItemById(recipe.crystal).LogNameSingular[1]
-    imgui.PushStyleColor(ImGuiCol_Text, crystalCount > 0 and theme.colors.text_light or theme.colors.text_dim)
-    imgui.TreeNodeEx(('(%3i) %s%s'):format(crystalCount, crystalName, priceTag(recipe.crystal)), imguiLeafNode)
-    imgui.PopStyleColor()
+    DrawIngredientLine(recipe.crystal, crystalCount, 'crystal', res, skills, inv, seenKeys, depth)
 
     -- and ends with the remaining items
-    -- TODO: compact duplicates into "x2" or whatever
-    for _, ingredientId in ipairs(recipe.ingredients) do
+    for i, ingredientId in ipairs(recipe.ingredients) do
         local ingredientCount = inv[ingredientId] or 0
-        local ingredientName = res:GetItemById(ingredientId).LogNameSingular[1]
-        imgui.PushStyleColor(ImGuiCol_Text, ingredientCount > 0 and theme.colors.text_light or theme.colors.text_dim)
-        imgui.TreeNodeEx(('(%3i) %s%s'):format(ingredientCount, ingredientName, priceTag(ingredientId)), imguiLeafNode)
-        imgui.PopStyleColor()
+        DrawIngredientLine(ingredientId, ingredientCount, 'ing' .. i, res, skills, inv, seenKeys, depth)
     end
 
     -- apply any Horizon output override for the economics below
@@ -585,6 +669,8 @@ local function DrawRecipe(recipe, skills, inv, res)
             obs.synths, obs.synths == 1 and '' or 's'), imguiLeafNode)
         imgui.PopStyleColor()
     end
+
+    seenKeys[myKey] = nil -- pop: only ancestors should ever be flagged, not siblings
 end
 
 local recipeFilter = { '' }

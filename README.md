@@ -124,6 +124,16 @@ only the materials in the `lost` list (the rest come back). Revenue is the
 product price × count, keyed by the item actually produced (so HQ items that are
 a different item id are valued correctly).
 
+## drill-down ingredients
+Any ingredient (or crystal) that is itself a recipe result is shown as an
+expandable line, not a dead end - open it to see that item's own recipe right
+there, nested inline, with its own skill checks, prices, cost, and favourite
+toggle. Chain as deep as the data goes (e.g. an item made from a component
+that's made from another component). If an item has more than one recipe, each
+is listed as its own expandable "recipe N" entry to choose from. Guarded
+against a cyclic or absurdly deep chain (5 levels, or a loop back to a recipe
+already open above it), which real recipe data should never hit.
+
 ## favorites
 Expand any recipe (in **Recipe List** or **Favorites**) and click
 **add to favorites** / **remove from favorites**. Favorited recipes get their own

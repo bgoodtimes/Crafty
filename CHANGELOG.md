@@ -2,6 +2,13 @@
 
 All notable changes to crafty are recorded here.
 
+## [2.1.0] - 2026-09-05
+
+### Added
+- Ingredients (and crystals) that are themselves a recipe result now open
+  inline instead of being a dead end - drill straight into that item's own
+  recipe, chained as deep as the data goes, with a cycle/depth guard.
+
 ## [2.0.0] - 2026-09-04
 
 First public release. crafty started as a standalone port of the `crafty`
