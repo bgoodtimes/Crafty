@@ -1,6 +1,6 @@
 addon.name    = 'crafty'
 addon.author  = 'lin (xitools); standalone port'
-addon.version = '2.2'
+addon.version = '2.2.1'
 addon.desc    = 'A crafting skill tracker and recipe list'
 
 require('common')
@@ -1618,13 +1618,24 @@ local function TickGil()
     gilPrev = gilNow
     gilNow = g
 
-    -- take the start-of-session baseline only once the character has been
-    -- loaded a couple of seconds and gil has stopped moving - this is what
-    -- keeps a zone-in transient (a 0 or a stale value) from becoming the start
+    -- take the start-of-session baseline once the character has settled in.
+    -- During a zone-in / login the gil slot can read a stale 0 for several
+    -- seconds, so require: at least 2s loaded, gil unchanged frame-to-frame,
+    -- and gil > 0 (a real broke-player 0 still baselines after a 20s grace).
     if sessionGil0 == nil then
-        if (os.time() - sessionCharSince) >= 2 and gilNow == gilPrev then
+        local elapsed = os.time() - sessionCharSince
+        local stable = (gilNow == gilPrev)
+        if elapsed >= 2 and stable and (gilNow > 0 or elapsed >= 20) then
             sessionGil0 = gilNow
         end
+        return
+    end
+
+    -- heal a 0 baseline captured by an older build during a bad load - would
+    -- show "session +<all your gil>" forever otherwise
+    if sessionGil0 == 0 and gilNow > 10000 then
+        sessionGil0 = nil
+        sessionCharSince = os.time()
         return
     end
 

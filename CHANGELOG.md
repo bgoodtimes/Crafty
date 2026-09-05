@@ -2,6 +2,14 @@
 
 All notable changes to crafty are recorded here.
 
+## [2.2.1] - 2026-09-05
+
+### Fixed
+- Session gil could baseline to 0 during a login/zone-in (the gil slot reads a
+  stale 0 for a few seconds), then show "session +<all your gil>" and never
+  correct. Now it waits for gil to be non-zero and stable before taking the
+  baseline, and self-heals an existing 0 baseline.
+
 ## [2.2.0] - 2026-09-05
 
 ### Changed
