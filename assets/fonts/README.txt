@@ -1,0 +1,20 @@
+Fonts are not shipped with this addon.
+
+Tahoma, Tahoma Bold, Segoe UI, Consolas and Verdana are Microsoft fonts.
+Redistributing them is not permitted, so they are not in the download.
+
+You do not need to do anything: on Windows the addon loads them straight
+from C:\Windows\Fonts, which you already have. Every font in the /crafty
+config -> Font dropdown will just work.
+
+If you are on a setup without those fonts, pick "Agave (Default)" in that
+dropdown - that is Ashita's built-in font and needs no files.
+
+To use your own font instead of the system copy, drop a .ttf in this folder
+using one of these names and it will be preferred:
+
+    tahomabd.ttf    Tahoma Bold
+    tahoma.ttf      Tahoma
+    segoeui.ttf     Segoe UI
+    consola.ttf     Consolas
+    verdana.ttf     Verdana

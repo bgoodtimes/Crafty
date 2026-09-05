@@ -1,0 +1,15 @@
+# OS cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+*.swp
+
+# Local scratch (per-character settings, price files, logs are written to the
+# game's config/addons/crafty/ folder, not into this repo - nothing to ignore
+# here, but keep this in case a local Ashita install symlinks one in)
+config/
+*.bak
+*.log
