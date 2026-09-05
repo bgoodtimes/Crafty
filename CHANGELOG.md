@@ -2,6 +2,16 @@
 
 All notable changes to crafty are recorded here.
 
+## [2.2.0] - 2026-09-05
+
+### Changed
+- Session gil is now just start / now / difference - the gil/hr rate and the
+  "since first synth" clock are gone (they were fiddly and prone to bad
+  numbers right after a zone-in).
+- The session baseline is taken a couple of seconds after login once gil has
+  settled, and resets reliably on a character change or a long gone-stretch
+  (logout / character select), instead of leaning on the settings-swap event.
+
 ## [2.1.0] - 2026-09-05
 
 ### Added

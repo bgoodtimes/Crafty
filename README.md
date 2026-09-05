@@ -80,14 +80,14 @@ still need a price — so you can tell exactly what's missing instead of a blank
 "set prices". `/crafty prices` prints how many price lines are loaded.
 
 ## session gil
-Under the skill readout on the main window:
-- **Session P/L** — gil now minus gil when the addon loaded (survives a relog;
-  `/crafty gil` re-baselines it). Also shows gil on hand.
-- **Since 1st synth** — gil change and gil/hr, clocked from your first synth of
-  the session (so idle time before you start crafting doesn't dilute the rate).
+Under the skill readout on the main window: your **start** gil, your gil **now**,
+and the difference (green/red). No time or rate — just a running session total.
 
-Read straight from the gil in inventory, so it counts every source — drops,
-vendors, AH, bazaar, quests.
+Read straight from inventory gil, so it counts every source — drops, vendors,
+AH, bazaar, quests. The start value is taken a couple of seconds after you're
+loaded in (so a zone-in transient never becomes the baseline) and resets on a
+character change or a logout/login. `/crafty gil` or the **reset** button
+re-baselines it to now.
 
 With prices entered:
 - the **Craft History** table gains a **Profit** column (green/red per synth); a

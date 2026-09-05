@@ -1,6 +1,6 @@
 addon.name    = 'crafty'
 addon.author  = 'lin (xitools); standalone port'
-addon.version = '2.1'
+addon.version = '2.2'
 addon.desc    = 'A crafting skill tracker and recipe list'
 
 require('common')
@@ -98,12 +98,15 @@ local InvalidatePriceRefs  -- defined lower; drops cached price-grid InputInt re
 local priceLog = { false } -- /crafty pricelog: dump text_in lines to a file
 local recipeEditState = {} -- [recipeKey] = { open, count = {n}, name = {''} }  transient
 
--- gil-on-hand tracking (per login: re-baselines when the character changes, so
--- one character's gil never bleeds into another's P/L on a relog)
+-- gil-on-hand tracking. The baseline (sessionGil0) is taken a couple of seconds
+-- after a character is loaded and their gil has settled, so a mid-zone-in
+-- transient never becomes the start value; it resets on any login/logout and
+-- on a character change.
 local gilNow, gilPrev = nil, nil        -- current / previous-frame gil
-local sessionGil0, sessionT0 = nil, nil -- baseline at login
+local sessionGil0 = nil                 -- start-of-session gil (nil until settled)
 local sessionChar = nil                 -- character the baseline belongs to
-local synthGil0, synthT0 = nil, nil     -- baseline at first synth since that login
+local sessionCharSince = 0              -- os.time() the current character was first seen
+local gilLastSeen = 0                   -- os.time() we last saw a loaded-in player
 local pendingNpc = nil                  -- { phrase, sold, base, t } awaiting a gil delta
 
 -- debounced autosave: any edit calls MarkDirty(); FlushDirty() writes the file
@@ -246,41 +249,21 @@ end
 local function ResetGil()
     local g = GilOnHand()
     if g == nil then return end
-    sessionGil0, sessionT0 = g, os.time()
-    synthGil0, synthT0 = nil, nil
-    CraftyPrint(('gil tracker reset - baseline %s'):format(economy.gil(g)))
+    sessionGil0 = g
+    CraftyPrint(('gil tracker reset - start %s'):format(economy.gil(g)))
 end
 
--- session gil P/L and craft-clock gil/hr, shown under the skills block
+-- session gil: start, now, and profit. No time / rate.
 local function DrawGil()
-    if gilNow == nil then return end
-    if not imgui.BeginTable('crafty.gil', 3, ImGuiTableFlags_SizingFixedFit) then return end
-    imgui.PushStyleVar(ImGuiStyleVar_CellPadding, { 14, 3 })
-
-    imgui.TableNextColumn(); TextDim('Session P/L')
-    local sp = sessionGil0 and (gilNow - sessionGil0) or 0
-    imgui.TableNextColumn()
-    imgui.TextColored(theme.state_color(sp >= 0 and 'good' or 'bad'), economy.gil(sp))
-    imgui.TableNextColumn(); TextDim(('%s on hand'):format(economy.gil(gilNow)))
-
-    imgui.TableNextColumn(); TextDim('Since 1st synth')
-    if synthGil0 ~= nil and synthT0 ~= nil then
-        local cp = gilNow - synthGil0
-        local hrs = math.max(1 / 60, (os.time() - synthT0) / 3600)
-        imgui.TableNextColumn()
-        imgui.TextColored(theme.state_color(cp >= 0 and 'good' or 'bad'), economy.gil(cp))
-        imgui.TableNextColumn(); TextDim(('%s/hr'):format(economy.gil(cp / hrs)))
-    else
-        imgui.TableNextColumn(); TextDim('-')
-        imgui.TableNextColumn(); TextDim('starts at 1st synth')
-    end
+    if gilNow == nil or sessionGil0 == nil then return end
+    local sp = gilNow - sessionGil0
+    imgui.TextColored(theme.state_color(sp >= 0 and 'good' or 'bad'),
+        ('session %s%s'):format(sp > 0 and '+' or '', economy.gil(sp)))
     imgui.SameLine()
     if imgui.SmallButton('reset##crafty.gilreset') then
         ResetGil()
     end
-
-    imgui.PopStyleVar()
-    imgui.EndTable()
+    TextDim(('%s  ->  %s'):format(economy.gil(sessionGil0), economy.gil(gilNow)))
 end
 
 -- Stable id for a recipe ("<crystal>|<sorted,ingredient,ids>"), shared with the
@@ -1056,15 +1039,6 @@ local function HandlePacket(e)
 
             table.insert(options.history, 1, inProgSynth)
             inProgSynth = nil
-
-            -- anchor the gil/hr clock to the first synth of the session
-            if synthGil0 == nil then
-                local g = GilOnHand()
-                if g ~= nil then
-                    synthGil0 = g
-                    synthT0 = os.time()
-                end
-            end
         end
     -- skillups come after the results, but won't always appear. so we
     -- don't wait for them, just update the most recent completed synth
@@ -1603,12 +1577,8 @@ settings.register('settings', 'settings_update', function(s)
         MarkDirty()
     end
 
-    -- character switch / relog: drop the gil baseline so TickGil re-takes it
-    -- for whoever is now logged in
-    sessionGil0, sessionT0, sessionChar = nil, nil, nil
-    synthGil0, synthT0 = nil, nil
-    gilNow, gilPrev = nil, nil
-    pendingNpc = nil
+    -- gil session tracking resets itself in TickGil (on a character change or a
+    -- long gone-stretch), so nothing to do here
 end)
 
 ashita.events.register('load', 'load_handler', function()
@@ -1624,17 +1594,22 @@ end)
 -- poll gil once per frame; resolve any pending NPC transaction once gil settles
 local function TickGil()
     local g = GilOnHand()
-    if g == nil then return end
-
     local e = GetPlayerEntity()
     local name = e and e.Name or nil
-    if name == nil or name == '' then return end
+    if g == nil or name == nil or name == '' then
+        return -- not loaded in; gilLastSeen freezes so the gap keeps growing
+    end
 
-    -- fresh login, or the character changed since we set the baseline
-    if sessionGil0 == nil or name ~= sessionChar then
-        sessionGil0, sessionT0 = g, os.time()
+    local now = os.time()
+    local gap = now - gilLastSeen
+    gilLastSeen = now
+
+    -- start a fresh session on: a different character, OR coming back after a
+    -- long gone-stretch (logout / char select), which a quick zone won't hit
+    if name ~= sessionChar or gap > 10 then
         sessionChar = name
-        synthGil0, synthT0 = nil, nil
+        sessionCharSince = now
+        sessionGil0 = nil
         pendingNpc = nil
         gilNow, gilPrev = g, g
         return
@@ -1642,6 +1617,16 @@ local function TickGil()
 
     gilPrev = gilNow
     gilNow = g
+
+    -- take the start-of-session baseline only once the character has been
+    -- loaded a couple of seconds and gil has stopped moving - this is what
+    -- keeps a zone-in transient (a 0 or a stale value) from becoming the start
+    if sessionGil0 == nil then
+        if (os.time() - sessionCharSince) >= 2 and gilNow == gilPrev then
+            sessionGil0 = gilNow
+        end
+        return
+    end
 
     if pendingNpc ~= nil then
         if type(pendingNpc.base) ~= 'number' or (os.clock() - pendingNpc.t) > 3 then
