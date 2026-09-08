@@ -1,6 +1,6 @@
 addon.name    = 'crafty'
 addon.author  = 'lin (xitools); standalone port'
-addon.version = '2.3'
+addon.version = '2.4'
 addon.desc    = 'A crafting skill tracker and recipe list'
 
 require('common')
@@ -20,6 +20,20 @@ local iconTimes = '\xef\x81\x97'
 local iconCheck = '\xef\x81\x98'
 local imguiLeafNode = bit.bor(ImGuiTreeNodeFlags_Leaf, ImGuiTreeNodeFlags_NoTreePushOnOpen)
 local inProgSynth = nil
+
+-- rough wall-clock per synth (animation + result wait); tweak to taste
+local SECONDS_PER_SYNTH = 22
+
+-- seconds -> "1h 23m" / "23m 45s" / "45s"
+local function FormatDuration(s)
+    s = math.floor((tonumber(s) or 0) + 0.5)
+    local h = math.floor(s / 3600)
+    local m = math.floor((s % 3600) / 60)
+    local sec = s % 60
+    if h > 0 then return ('%dh %dm'):format(h, m) end
+    if m > 0 then return ('%dm %ds'):format(m, sec) end
+    return ('%ds'):format(sec)
+end
 
 local crystalMap = {
     -- nq crystals
@@ -595,10 +609,15 @@ DrawRecipe = function(recipe, skills, inv, res, seenKeys, depth)
         }
     end
 
-    -- how many of this recipe the current inventory can make
+    -- how many of this recipe the current inventory can make, and roughly how
+    -- long it'd take to churn through all of them at ~22s each
     local makeable = economy.makeable(rec, inv)
+    local makeLabel = ('makeable now: %i'):format(makeable)
+    if makeable > 0 then
+        makeLabel = ('%s   (~%s)'):format(makeLabel, FormatDuration(makeable * SECONDS_PER_SYNTH))
+    end
     imgui.PushStyleColor(ImGuiCol_Text, makeable > 0 and theme.colors.text_light or theme.colors.text_dim)
-    imgui.TreeNodeEx(('makeable now: %i'):format(makeable), imguiLeafNode)
+    imgui.TreeNodeEx(makeLabel, imguiLeafNode)
     imgui.PopStyleColor()
 
     -- projected economics from the entered prices
@@ -1544,15 +1563,15 @@ local function DrawMain()
         local fontPushed = fonts.push(options.ui.fontFamily[1])
         local scaleTag = fonts.begin_scale(options.ui.scale[1])
 
-        Header('Crafting Skills')
-        imgui.SameLine()
-        if imgui.SmallButton(skillsEdit[1] and 'done##crafty.skilltoggle' or 'edit##crafty.skilltoggle') then
-            skillsEdit[1] = not skillsEdit[1]
-        end
-        if skillsEdit[1] then
-            DrawSkillsEdit(options.skills)
-        else
-            DrawSkills(options.skills)
+        if imgui.CollapsingHeader('Crafting Skills', ImGuiTreeNodeFlags_DefaultOpen or 0) then
+            if imgui.SmallButton(skillsEdit[1] and 'done##crafty.skilltoggle' or 'edit##crafty.skilltoggle') then
+                skillsEdit[1] = not skillsEdit[1]
+            end
+            if skillsEdit[1] then
+                DrawSkillsEdit(options.skills)
+            else
+                DrawSkills(options.skills)
+            end
         end
         imgui.Spacing()
         DrawGil()

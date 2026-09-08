@@ -2,6 +2,14 @@
 
 All notable changes to crafty are recorded here.
 
+## [2.4.0] - 2026-09-08
+
+### Added
+- The **Crafting Skills** section on the main window is now a collapsible
+  header (open by default).
+- The **makeable now** line shows a rough total time to craft all of them
+  (`~22s` per synth, e.g. `makeable now: 12   (~4m 24s)`).
+
 ## [2.3.0] - 2026-09-05
 
 ### Added

@@ -109,7 +109,8 @@ resolves under `config/addons/crafty/`) for sharing a set of Horizon fixes.
 ### projections
 - each recipe in **Recipe List** shows:
   - **makeable now** — how many synths your current inventory can do (crystal +
-    ingredients, duplicates counted), read live from the item tracker
+    ingredients, duplicates counted), read live from the item tracker, plus a
+    rough total time to churn through them all (`~22s` per synth)
   - **cost + break-even/ea** as soon as the crystal and ingredient prices are
     known — the result price is *not* required for this. Next to it, a
     **save to price list** button writes that per-unit crafted cost in as the
