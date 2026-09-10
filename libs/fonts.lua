@@ -1,15 +1,15 @@
 --[[
-* crafty - font family + text-size scaling for the addon's windows
+* synthex - font family + text-size scaling for the addon's windows
 *
 * Approach lifted from floos' libs/fonts.lua (GPLv3): load bundled-name faces
 * via imgui.AddFontFromFileTTF and scale per-window with SetWindowFontScale,
 * falling back to PushFontSize / PushFont(font, size) on newer ImGui bindings
 * that dropped it.
 *
-* No font files are shipped with crafty. Every face here (besides the no-file
+* No font files are shipped with synthex. Every face here (besides the no-file
 * "Agave" default) is a standard Windows font - it's loaded straight from
 * %WINDIR%\Fonts, which every Windows install already has. Dropping a
-* same-named .ttf in crafty/assets/fonts/ overrides the system copy.
+* same-named .ttf in synthex/assets/fonts/ overrides the system copy.
 ]]--
 
 require('common')
@@ -71,14 +71,14 @@ function M.get_font(label)
         return (cache[label] ~= false) and cache[label] or nil
     end
 
-    -- a same-named file dropped in crafty/assets/fonts/ wins over the system copy
+    -- a same-named file dropped in synthex/assets/fonts/ wins over the system copy
     local font = try_add_font(addon_fonts_dir() .. opt.file) or try_add_font(windows_fonts_dir() .. opt.file)
 
     if font == nil then
         cache[label] = false
         if not warned[label] then
             warned[label] = true
-            print(('[crafty] could not load font "%s" (looked in %s and %s) - using default'):format(
+            print(('[synthex] could not load font "%s" (looked in %s and %s) - using default'):format(
                 label, addon_fonts_dir(), windows_fonts_dir()))
         end
         return nil

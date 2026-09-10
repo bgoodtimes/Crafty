@@ -1,6 +1,26 @@
 # Changelog
 
-All notable changes to crafty are recorded here.
+All notable changes to synthex are recorded here.
+
+## [3.0.0] - 2026-09-08
+
+### Changed - renamed from "crafty" to "synthex"
+
+The old name collided with a banned addon. This is a breaking rename:
+
+- The addon folder is now `addons/synthex/`, the entry file `synthex.lua`.
+- Commands are `/synthex` and `/sx` (were `/crafty` / `/craft`).
+- Per-character settings and the shared price list now live under
+  `config/addons/synthex/` instead of `config/addons/crafty/`.
+
+**To keep your data:** with the game closed (or the addon unloaded), rename
+`Game/config/addons/crafty` to `Game/config/addons/synthex`. That preserves
+every character's skills, favorites, and recipe overrides, plus the shared
+price list. If you skip it, synthex will still copy `prices.txt` and
+`overrides.txt` across automatically on first load, but per-character
+settings will start fresh.
+
+Update any `/addon load crafty` line in `scripts/*.txt` to `/addon load synthex`.
 
 ## [2.4.0] - 2026-09-08
 
@@ -14,7 +34,7 @@ All notable changes to crafty are recorded here.
 
 ### Added
 - **edit price** button on a recipe's sell/margin line on the main window -
-  set the result item's per-unit price inline, without opening `/crafty
+  set the result item's per-unit price inline, without opening `/synthex
   config`. Also appears on the "set the result price for margin" line when
   no price is set yet.
 
@@ -45,7 +65,7 @@ All notable changes to crafty are recorded here.
 
 ## [2.0.0] - 2026-09-04
 
-First public release. crafty started as a standalone port of the `crafty`
+First public release. synthex started as a standalone port of the `synthex`
 tool from the [xitools](../xitools) suite and grew into its own addon with a
 themed UI and a full profit-tracking layer.
 
@@ -53,7 +73,7 @@ themed UI and a full profit-tracking layer.
 - DarkGold window theme (with OceanBlue, Plain, and GreenGold alternatives),
   adapted from Floos / XIUI.
 - Editable crafting skill levels, inline on the main window and in config.
-- **Profit tracking**: a shared master price list (`config/addons/crafty/prices.txt`,
+- **Profit tracking**: a shared master price list (`config/addons/synthex/prices.txt`,
   used by every character, not per-character), with a per-item grid editor,
   a bulk text editor, and file import/export.
 - Automatic price learning from the chat log - AH and bazaar purchase/sale
@@ -76,7 +96,7 @@ themed UI and a full profit-tracking layer.
 - Appearance controls: font family (loaded from the system's own fonts, none
   bundled) and text-size slider, plus background opacity / corner rounding /
   border thickness sliders layered on top of any theme.
-- Diagnostics: `/crafty prices`, `/crafty pricetest`, `/crafty pricelog`.
+- Diagnostics: `/synthex prices`, `/synthex pricetest`, `/synthex pricelog`.
 
 ### Fixed along the way
 - Chat-line parsing now survives colour/format codes and the various phrasings
@@ -91,6 +111,6 @@ themed UI and a full profit-tracking layer.
 
 ## [1.0.0]
 
-Initial standalone port of xitools' `crafty` tool: crafting skill tracking,
+Initial standalone port of xitools' `synthex` tool: crafting skill tracking,
 synth history, and the recipe browser/search, unchanged from xitools apart
 from packaging it as its own addon.

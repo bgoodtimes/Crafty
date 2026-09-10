@@ -1,7 +1,7 @@
-crafty - a crafting skill tracker, recipe list, and profit calculator for
+synthex - a crafting skill tracker, recipe list, and profit calculator for
 Ashita v4 (Final Fantasy XI)
 
-Copyright (C) 2026 the crafty contributors
+Copyright (C) 2026 the synthex contributors
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,10 +19,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 WHY GPL v3
 -----------------------------------------------------------------------
-Not a choice - it is inherited. crafty's window theming and font loading
+Not a choice - it is inherited. synthex's window theming and font loading
 (libs/theme.lua, libs/fonts.lua) are adapted from Floos, which is itself
 GPLv3 because it derives from XIUI. Combining that code with the rest of
-crafty places the whole addon under GPLv3. See THIRD_PARTY_NOTICES.md for
+synthex places the whole addon under GPLv3. See THIRD_PARTY_NOTICES.md for
 exactly which files came from where and under what terms.
 -----------------------------------------------------------------------
 

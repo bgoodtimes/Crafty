@@ -4,7 +4,7 @@ Tahoma, Tahoma Bold, Segoe UI, Consolas and Verdana are Microsoft fonts.
 Redistributing them is not permitted, so they are not in the download.
 
 You do not need to do anything: on Windows the addon loads them straight
-from C:\Windows\Fonts, which you already have. Every font in the /crafty
+from C:\Windows\Fonts, which you already have. Every font in the /synthex
 config -> Font dropdown will just work.
 
 If you are on a setup without those fonts, pick "Agave (Default)" in that

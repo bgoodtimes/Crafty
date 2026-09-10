@@ -1,10 +1,10 @@
 --[[
-* crafty - synth profit / material-cost bookkeeping
+* synthex - synth profit / material-cost bookkeeping
 *
 * Prices are a shared master list, one gil figure per item for every character
 * on the account - so Imperial Cermet costs the same whether your WAR alt or
 * your main is looking at the recipe. Stored as 'item name:gil' lines (same
-* idea as floos' item_index) in config/addons/crafty/prices.txt, which lives
+* idea as floos' item_index) in config/addons/synthex/prices.txt, which lives
 * alongside the per-character settings folders but is not one of them - so it
 * is untouched by Ashita's per-character settings load/merge/save. That also
 * keeps it human-editable and portable on its own.
@@ -69,13 +69,13 @@ end
 -- price store
 --------------------------------------------------------------------------------
 
---- config/addons/crafty, where the master price file and a bare import/export
+--- config/addons/synthex, where the master price file and a bare import/export
 --- filename resolve. Same for every character - it sits beside the
 --- per-character settings folders, not inside one of them.
 function M.dir()
     local ok, p = pcall(function() return AshitaCore:GetInstallPath() end)
     if ok and p ~= nil and p ~= '' then
-        return (tostring(p):gsub('[/\\]+$', '')) .. '/config/addons/crafty'
+        return (tostring(p):gsub('[/\\]+$', '')) .. '/config/addons/synthex'
     end
     return '.'
 end
@@ -137,7 +137,7 @@ function M.set_lines(lines)
     M.save_master()
 end
 
---- Counts for /crafty prices: list lines, entries in the lookup map, bad lines.
+--- Counts for /synthex prices: list lines, entries in the lookup map, bad lines.
 function M.debug_summary()
     local n_list, n_bad = 0, 0
     for _, line in ipairs(price_lines) do

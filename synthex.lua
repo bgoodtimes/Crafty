@@ -1,7 +1,7 @@
-addon.name    = 'crafty'
+addon.name    = 'synthex'
 addon.author  = 'lin (xitools); standalone port'
-addon.version = '2.4'
-addon.desc    = 'A crafting skill tracker and recipe list'
+addon.version = '3.0'
+addon.desc    = 'Crafting skill tracker, recipe browser, and profit calculator'
 
 require('common')
 local bit = require('bit')
@@ -107,9 +107,9 @@ local resultColorMap = {
 -- mutable state, forward-declared so every draw / handler below can see it
 local options              -- the live settings table (swapped on relog)
 local HandleText           -- defined lower; the command handler references it
-local CraftyPrint          -- defined lower; chat helper
+local SynthexPrint          -- defined lower; chat helper
 local InvalidatePriceRefs  -- defined lower; drops cached price-grid InputInt refs
-local priceLog = { false } -- /crafty pricelog: dump text_in lines to a file
+local priceLog = { false } -- /synthex pricelog: dump text_in lines to a file
 local recipeEditState = {} -- [recipeKey] = { open, count = {n}, name = {''} }  transient
 local sellEditState = {}    -- [recipeKey] = { ref = { gil } }  inline result-price editor
 
@@ -225,7 +225,7 @@ end
 local skillsEdit = { false }
 
 local function DrawSkills(skills)
-    if imgui.BeginTable('crafty.skills', 4, ImGuiTableFlags_SizingFixedFit) then
+    if imgui.BeginTable('synthex.skills', 4, ImGuiTableFlags_SizingFixedFit) then
         imgui.PushStyleVar(ImGuiStyleVar_CellPadding, { 14, 3 })
         for id = 1, 8 do
             local level = skills[id][1]
@@ -254,7 +254,7 @@ local function DrawSkillsEdit(skills)
         if id % 2 == 0 then
             imgui.SameLine(0, 14)
         end
-        local ch = imgui.InputFloat(skillsAbbrMap[id] .. '##crafty.skilledit' .. id, skills[id], 0.1, 1.0, '%.1f')
+        local ch = imgui.InputFloat(skillsAbbrMap[id] .. '##synthex.skilledit' .. id, skills[id], 0.1, 1.0, '%.1f')
         EditedFloat(ch, skills[id], 0, 200)
     end
     imgui.PopItemWidth()
@@ -265,7 +265,7 @@ local function ResetGil()
     local g = GilOnHand()
     if g == nil then return end
     sessionGil0 = g
-    CraftyPrint(('gil tracker reset - start %s'):format(economy.gil(g)))
+    SynthexPrint(('gil tracker reset - start %s'):format(economy.gil(g)))
 end
 
 -- session gil: start, now, and profit. No time / rate.
@@ -275,7 +275,7 @@ local function DrawGil()
     imgui.TextColored(theme.state_color(sp >= 0 and 'good' or 'bad'),
         ('session %s%s'):format(sp > 0 and '+' or '', economy.gil(sp)))
     imgui.SameLine()
-    if imgui.SmallButton('reset##crafty.gilreset') then
+    if imgui.SmallButton('reset##synthex.gilreset') then
         ResetGil()
     end
     TextDim(('%s  ->  %s'):format(economy.gil(sessionGil0), economy.gil(gilNow)))
@@ -354,7 +354,7 @@ local function ToggleFavorite(key)
         end
     end
     if #options.favorites >= FAVORITES_MAX then
-        CraftyPrint(('favorites full (%d) - remove one first'):format(FAVORITES_MAX))
+        SynthexPrint(('favorites full (%d) - remove one first'):format(FAVORITES_MAX))
         return
     end
     options.favorites:append(key)
@@ -635,7 +635,7 @@ DrawRecipe = function(recipe, skills, inv, res, seenKeys, depth)
         if imgui.SmallButton('save##craftcost') then
             economy.set_price(eResult, breakeven)
             InvalidatePriceRefs()
-            CraftyPrint(('price list: %s set to %s (crafted cost)'):format(
+            SynthexPrint(('price list: %s set to %s (crafted cost)'):format(
                 economy.item_name(eResult) or ('#' .. eResult), economy.gil(breakeven)))
         end
         if makeable > 0 then
@@ -688,7 +688,7 @@ DrawRecipe = function(recipe, skills, inv, res, seenKeys, depth)
         if imgui.SmallButton('save##truecost') then
             economy.set_price(eResult, obs.unit_cost)
             InvalidatePriceRefs()
-            CraftyPrint(('price list: %s set to %s (true cost, %i units / %i synths)'):format(
+            SynthexPrint(('price list: %s set to %s (true cost, %i units / %i synths)'):format(
                 economy.item_name(eResult) or ('#' .. eResult), economy.gil(obs.unit_cost),
                 obs.units, obs.priced_synths))
         end
@@ -815,7 +815,7 @@ local function DrawHistory(options)
                 t.priced, t.synths, economy.gil(t.gph), pct(t.hq), pct(t.success)))
         end
 
-        if imgui.BeginTable('crafty.history', 4, bit.bor(ImGuiTableFlags_ScrollY, ImGuiTableFlags_RowBg), { textBaseWidth * 66, 360 }) then
+        if imgui.BeginTable('synthex.history', 4, bit.bor(ImGuiTableFlags_ScrollY, ImGuiTableFlags_RowBg), { textBaseWidth * 66, 360 }) then
             local res = AshitaCore:GetResourceManager()
             imgui.TableSetupScrollFreeze(0, 1)
             imgui.TableSetupColumn('Synth', ImGuiTableColumnFlags_NoHide, textBaseWidth * 26)
@@ -884,7 +884,7 @@ end
 local defaultSettings = T{
     isVisible = T{ true },
     configVisible = T{ false },
-    name = 'crafty',
+    name = 'synthex',
     size = T{ -1, -1 },
     pos = T{ 100, 100 },
     flags = ImGuiWindowFlags_AlwaysAutoResize,
@@ -939,7 +939,38 @@ if options.ui == nil then
     options.ui = defaultSettings.ui:copy(true)
 end
 
--- Prices are a shared master list (config/addons/crafty/prices.txt), not part
+-- one-time: this addon used to be called "crafty". If its shared files are
+-- still only in the old config/addons/crafty/ folder, bring them across so a
+-- rename doesn't wipe the price list. (Per-character settings - skills,
+-- favorites, overrides - are preserved by renaming the whole config folder;
+-- see the README.)
+do
+    local newDir = economy.dir()
+    local oldDir = newDir:gsub('[/\\]synthex$', '/crafty')
+    if oldDir ~= newDir then
+        for _, fname in ipairs({ 'prices.txt', 'overrides.txt' }) do
+            local exists = io.open(newDir .. '/' .. fname, 'r')
+            if exists ~= nil then
+                exists:close()
+            else
+                local src = io.open(oldDir .. '/' .. fname, 'r')
+                if src ~= nil then
+                    local data = src:read('*a')
+                    src:close()
+                    local dst = io.open(newDir .. '/' .. fname, 'w')
+                    if dst ~= nil then
+                        dst:write(data or '')
+                        dst:close()
+                        print(chat.header('synthex'):append(chat.message(
+                            ('brought %s over from the old crafty folder'):format(fname))))
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Prices are a shared master list (config/addons/synthex/prices.txt), not part
 -- of any one character's settings, so every character prices the same items
 -- the same way. Load it, then fold in anything from this character's OLD
 -- per-character price list (from before prices moved out of settings) and
@@ -952,7 +983,7 @@ for id = 4096, 4103 do economy.see(id) end
 if options.prices ~= nil and #options.prices > 0 then
     local updated, added = economy.merge_lines(options.prices)
     local n = updated + added
-    print(chat.header('crafty'):append(chat.message(
+    print(chat.header('synthex'):append(chat.message(
         ('migrated %d price%s from this character into the shared price list'):format(
             n, n == 1 and '' or 's'))))
     options.prices = T{}
@@ -960,7 +991,7 @@ if options.prices ~= nil and #options.prices > 0 then
 end
 
 local configWindow = {
-    name = 'crafty##Config',
+    name = 'synthex##Config',
     size = T{ 460, 620 },
     pos = T{ 120, 120 },
     flags = ImGuiWindowFlags_NoCollapse,
@@ -979,22 +1010,22 @@ local function HandleCommand(args)
     elseif verb == 'cl' or verb == 'clear' then
         options.history = T{}
     elseif verb == 'pricetest' then
-        -- /crafty pricetest You buy the 12 wind crystals for 700 gil.
+        -- /synthex pricetest You buy the 12 wind crystals for 700 gil.
         local line = table.concat(args, ' ', 2)
         if line == '' then
-            print(chat.header('crafty'):append(chat.message('usage: /crafty pricetest <a purchase/sale line>')))
+            print(chat.header('synthex'):append(chat.message('usage: /synthex pricetest <a purchase/sale line>')))
         else
             HandleText({ message = line }, true)
         end
     elseif verb == 'pricelog' then
         priceLog[1] = not priceLog[1]
-        print(chat.header('crafty'):append(chat.message(priceLog[1]
-            and ('logging chat lines to ' .. economy.dir() .. '/textlog.txt - buy something, then /crafty pricelog again')
+        print(chat.header('synthex'):append(chat.message(priceLog[1]
+            and ('logging chat lines to ' .. economy.dir() .. '/textlog.txt - buy something, then /synthex pricelog again')
             or 'chat line logging off')))
     elseif verb == 'prices' then
         economy.rebuild()
         local nl, nm, nb = economy.debug_summary()
-        print(chat.header('crafty'):append(chat.message(
+        print(chat.header('synthex'):append(chat.message(
             ('price list: %d lines, %d in lookup, %d unreadable'):format(nl, nm, nb))))
     elseif verb == 'gil' then
         ResetGil()
@@ -1137,8 +1168,8 @@ local purchasePatterns = {
     { '^you sell%s+(.-)%s+to%s+.-%s+for%s+([%d,]+)%s+gil', true },
 }
 
-CraftyPrint = function(text)
-    print(chat.header('crafty'):append(chat.message(text)))
+SynthexPrint = function(text)
+    print(chat.header('synthex'):append(chat.message(text)))
 end
 
 -- remembers phrases we already complained about, so a repeated non-craft
@@ -1158,7 +1189,7 @@ local function StripCodes(s)
     return s
 end
 
--- verbose: report every step (used by /crafty pricetest) even when learning is off
+-- verbose: report every step (used by /synthex pricetest) even when learning is off
 HandleText = function(e, verbose)
     if not verbose and not options.learnPrices[1] then return end
 
@@ -1167,7 +1198,7 @@ HandleText = function(e, verbose)
         :gsub('^%s+', ''):gsub('%s+$', '')
         :lower()
     if msg == '' then
-        if verbose then CraftyPrint('empty line') end
+        if verbose then SynthexPrint('empty line') end
         return
     end
 
@@ -1183,7 +1214,7 @@ HandleText = function(e, verbose)
             local id = economy.resolve_item(itemPhrase)
 
             if verbose then
-                CraftyPrint(('match: item="%s"  qty=%d  total=%s  id=%s'):format(
+                SynthexPrint(('match: item="%s"  qty=%d  total=%s  id=%s'):format(
                     itemPhrase, qty, tostring(total), tostring(id)))
             end
 
@@ -1194,10 +1225,10 @@ HandleText = function(e, verbose)
                 local name = economy.item_name(id) or ('#' .. id)
                 local how = entry[2] and 'sold' or 'bought'
                 local detail = qty > 1 and (' (%s / %i)'):format(economy.gil(total), qty) or ''
-                CraftyPrint(('%s %s = %s%s'):format(how, name, economy.gil(per), detail))
+                SynthexPrint(('%s %s = %s%s'):format(how, name, economy.gil(per), detail))
             elseif id == nil and (verbose or not learnWarned[itemPhrase]) then
                 learnWarned[itemPhrase] = true
-                CraftyPrint(('no item match for "%s" - craft with it once, or add it by hand'):format(itemPhrase))
+                SynthexPrint(('no item match for "%s" - craft with it once, or add it by hand'):format(itemPhrase))
             end
             return
         end
@@ -1210,7 +1241,7 @@ HandleText = function(e, verbose)
     local npcBuy = msg:match('^you buy%s+(.-)%s+from the shop')
     if npcSell or npcBuy then
         if verbose then
-            CraftyPrint(('npc %s line seen: "%s" (price comes from the gil change in-game)'):format(
+            SynthexPrint(('npc %s line seen: "%s" (price comes from the gil change in-game)'):format(
                 npcSell and 'sell' or 'buy', npcSell or npcBuy))
         elseif gilNow ~= nil then
             pendingNpc = {
@@ -1225,12 +1256,12 @@ HandleText = function(e, verbose)
 
     -- smelled like a trade line but no pattern caught it: surface the wording once
     if verbose then
-        CraftyPrint('no price pattern matched: ' .. msg)
+        SynthexPrint('no price pattern matched: ' .. msg)
     elseif (msg:match('^you bought ') or msg:match('^you buy ')
             or msg:match('^you sold ') or msg:match('^you sell '))
         and msg:match('[%d,]+ gil') and not learnWarned[msg] then
         learnWarned[msg] = true
-        CraftyPrint('unrecognised price line (please report this wording): ' .. msg)
+        SynthexPrint('unrecognised price line (please report this wording): ' .. msg)
     end
 end
 
@@ -1246,7 +1277,7 @@ end
 local function DrawPrices(options)
     Header('Prices - per item')
     TextDim('Everything a synth has touched. Fill in what you buy/sell it for.')
-    BeginPanel('crafty.cfg.pricegrid', 190)
+    BeginPanel('synthex.cfg.pricegrid', 190)
     imgui.PushItemWidth(90)
     local ids = economy.seen_ids()
     if #ids == 0 then
@@ -1259,7 +1290,7 @@ local function DrawPrices(options)
             priceRefs[id] = ref
         end
         local name = economy.item_name(id) or ('#' .. id)
-        if imgui.InputInt(name .. '##crafty.price' .. id, ref) then
+        if imgui.InputInt(name .. '##synthex.price' .. id, ref) then
             if ref[1] < 0 then ref[1] = 0 end
             economy.set_price(id, ref[1])
             priceBulkDirty = true
@@ -1271,13 +1302,13 @@ local function DrawPrices(options)
     imgui.Spacing()
     Header('Prices - full list')
     TextDim('One "item name:gil" per line. Shared with the grid above.')
-    BeginPanel('crafty.cfg.pricelist', 150)
+    BeginPanel('synthex.cfg.pricelist', 150)
     if priceBulkDirty then
         priceBulk[1] = table.concat(economy.get_lines(), '\n')
         lastBulkText = priceBulk[1]
         priceBulkDirty = false
     end
-    imgui.InputTextMultiline('##crafty.pricebulk', priceBulk, 16384, { -1, 122 })
+    imgui.InputTextMultiline('##synthex.pricebulk', priceBulk, 16384, { -1, 122 })
     -- only rewrite the price list when the text actually differs from what we
     -- loaded in - never on a spurious "changed" with identical content
     if priceBulk[1] ~= lastBulkText then
@@ -1289,7 +1320,7 @@ local function DrawPrices(options)
 
     imgui.Spacing()
     Header('Prices - learn from chat')
-    BeginPanel('crafty.cfg.pricelearn', 84)
+    BeginPanel('synthex.cfg.pricelearn', 84)
     if imgui.Checkbox('Learn from AH / bazaar / NPC-shop buy & sell lines', options.learnPrices) then MarkDirty() end
     TextDim('AH/bazaar: reads the gil from the line. NPC shop: reads it from')
     TextDim('the gil change (the line has no amount).')
@@ -1297,23 +1328,23 @@ local function DrawPrices(options)
 
     imgui.Spacing()
     Header('Prices - import / export')
-    BeginPanel('crafty.cfg.pricefile', 100)
+    BeginPanel('synthex.cfg.pricefile', 100)
     imgui.PushItemWidth(190)
-    imgui.InputText('##crafty.pricefile', priceFile, 256)
+    imgui.InputText('##synthex.pricefile', priceFile, 256)
     imgui.PopItemWidth()
     imgui.SameLine()
     if imgui.Button('Import') then
         local path = ResolvePricePath()
         local f = io.open(path, 'r')
         if f == nil then
-            print(chat.header('crafty'):append(chat.message('could not open ' .. path)))
+            print(chat.header('synthex'):append(chat.message('could not open ' .. path)))
         else
             local lines = {}
             for line in f:lines() do lines[#lines + 1] = line end
             f:close()
             local u, a, s = economy.merge_lines(lines)
             InvalidatePriceRefs()
-            print(chat.header('crafty'):append(chat.message(
+            print(chat.header('synthex'):append(chat.message(
                 ('prices: %i updated, %i added, %i skipped'):format(u, a, s))))
         end
     end
@@ -1322,11 +1353,11 @@ local function DrawPrices(options)
         local path = ResolvePricePath()
         local f = io.open(path, 'w')
         if f == nil then
-            print(chat.header('crafty'):append(chat.message('could not write ' .. path)))
+            print(chat.header('synthex'):append(chat.message('could not write ' .. path)))
         else
             f:write(table.concat(economy.get_lines(), '\n'))
             f:close()
-            print(chat.header('crafty'):append(chat.message('prices written to ' .. path)))
+            print(chat.header('synthex'):append(chat.message('prices written to ' .. path)))
         end
     end
     TextDim('Master list lives at ' .. economy.dir() .. '/prices.txt, shared by every character.')
@@ -1386,7 +1417,7 @@ local function DrawOverrides(options)
     Header('Recipe output overrides')
     TextDim('Fixes for synths Horizon changed. Edit these in the Recipe List;')
     TextDim('this is just the list of what you have changed.')
-    BeginPanel('crafty.cfg.overrides', 214)
+    BeginPanel('synthex.cfg.overrides', 214)
     local any = false
     if options.recipeOverrides ~= nil then
         for key, ov in pairs(options.recipeOverrides) do
@@ -1413,24 +1444,24 @@ local function DrawOverrides(options)
 
     imgui.Separator()
     imgui.PushItemWidth(180)
-    imgui.InputText('##crafty.ovfile', overrideFile, 256)
+    imgui.InputText('##synthex.ovfile', overrideFile, 256)
     imgui.PopItemWidth()
     imgui.SameLine()
     if imgui.SmallButton('Import##ov') then
         local a, u, s = ImportOverrides(ResolveOverridePath())
         if a == nil then
-            CraftyPrint('could not open ' .. ResolveOverridePath())
+            SynthexPrint('could not open ' .. ResolveOverridePath())
         else
             settings.save()
-            CraftyPrint(('overrides: %d added, %d updated, %d skipped'):format(a, u, s))
+            SynthexPrint(('overrides: %d added, %d updated, %d skipped'):format(a, u, s))
         end
     end
     imgui.SameLine()
     if imgui.SmallButton('Export##ov') then
         if ExportOverrides(ResolveOverridePath()) then
-            CraftyPrint('overrides written to ' .. ResolveOverridePath())
+            SynthexPrint('overrides written to ' .. ResolveOverridePath())
         else
-            CraftyPrint('could not write ' .. ResolveOverridePath())
+            SynthexPrint('could not write ' .. ResolveOverridePath())
         end
     end
     TextDim('Bare filename resolves under ' .. economy.dir())
@@ -1453,7 +1484,7 @@ local function DrawConfig()
         local scaleTag = fonts.begin_scale(options.ui.scale[1])
 
         Header('Appearance')
-        BeginPanel('crafty.cfg.appearance', 132)
+        BeginPanel('synthex.cfg.appearance', 132)
         if imgui.Checkbox('Show window', options.isVisible) then MarkDirty() end
         imgui.Spacing()
         TextDim('Window theme')
@@ -1472,7 +1503,7 @@ local function DrawConfig()
 
         imgui.Spacing()
         Header('Font')
-        BeginPanel('crafty.cfg.font', 74)
+        BeginPanel('synthex.cfg.font', 74)
         if fonts.render_combo(options.ui.fontFamily) then MarkDirty() end
         local scaleChanged = imgui.SliderFloat('Text Size', options.ui.scale, 0.75, 2.00, '%.2fx')
         if options.ui.scale[1] < 0.75 then options.ui.scale[1] = 0.75 end
@@ -1482,7 +1513,7 @@ local function DrawConfig()
 
         imgui.Spacing()
         Header('Panel style')
-        BeginPanel('crafty.cfg.panelstyle', 130)
+        BeginPanel('synthex.cfg.panelstyle', 130)
         local opacityChanged = imgui.SliderFloat('Background Opacity', options.ui.panelOpacity, 0.10, 1.00, '%.2f')
         if opacityChanged then MarkDirty() end
         local roundingChanged = imgui.SliderInt('Corner Rounding', options.ui.panelRounding, 0, 16)
@@ -1501,7 +1532,7 @@ local function DrawConfig()
 
         imgui.Spacing()
         Header('Hide window while...')
-        BeginPanel('crafty.cfg.hide', 128)
+        BeginPanel('synthex.cfg.hide', 128)
         if imgui.Checkbox('the map is open', options.hideUnderMap) then MarkDirty() end
         if imgui.Checkbox('chat is expanded', options.hideUnderChat) then MarkDirty() end
         if imgui.Checkbox('zoning / loading', options.hideWhileLoading) then MarkDirty() end
@@ -1511,7 +1542,7 @@ local function DrawConfig()
 
         imgui.Spacing()
         Header('Crafting skills')
-        BeginPanel('crafty.cfg.skills', 244)
+        BeginPanel('synthex.cfg.skills', 244)
         TextDim('Seed these to your in-game levels; skill-ups keep them current.')
         imgui.Spacing()
         for id = 1, 8 do
@@ -1528,7 +1559,7 @@ local function DrawConfig()
 
         imgui.Spacing()
         Header('History')
-        BeginPanel('crafty.cfg.history', 56)
+        BeginPanel('synthex.cfg.history', 56)
         if imgui.Button('Clear craft history') then
             options.history = T{}
             MarkDirty()
@@ -1537,7 +1568,7 @@ local function DrawConfig()
 
         imgui.Spacing()
         imgui.Separator()
-        TextDim(('crafty %s  -  crafting logic and recipe data from xitools by lin'):format(addon.version))
+        TextDim(('synthex %s  -  crafting logic and recipe data from xitools by lin'):format(addon.version))
 
         fonts.end_scale(scaleTag)
         fonts.pop(fontPushed)
@@ -1564,7 +1595,7 @@ local function DrawMain()
         local scaleTag = fonts.begin_scale(options.ui.scale[1])
 
         if imgui.CollapsingHeader('Crafting Skills', ImGuiTreeNodeFlags_DefaultOpen or 0) then
-            if imgui.SmallButton(skillsEdit[1] and 'done##crafty.skilltoggle' or 'edit##crafty.skilltoggle') then
+            if imgui.SmallButton(skillsEdit[1] and 'done##synthex.skilltoggle' or 'edit##synthex.skilltoggle') then
                 skillsEdit[1] = not skillsEdit[1]
             end
             if skillsEdit[1] then
@@ -1621,7 +1652,7 @@ settings.register('settings', 'settings_update', function(s)
     if options.prices ~= nil and #options.prices > 0 then
         local updated, added = economy.merge_lines(options.prices)
         local n = updated + added
-        CraftyPrint(('migrated %d price%s from this character into the shared price list'):format(
+        SynthexPrint(('migrated %d price%s from this character into the shared price list'):format(
             n, n == 1 and '' or 's'))
         options.prices = T{}
         MarkDirty()
@@ -1700,7 +1731,7 @@ local function TickGil()
                 local per = math.max(1, math.floor(math.abs(dg) / math.max(1, qty) + 0.5))
                 economy.set_price(id, per)
                 InvalidatePriceRefs()
-                CraftyPrint(('%s %s = %s (npc, %s total)'):format(
+                SynthexPrint(('%s %s = %s (npc, %s total)'):format(
                     pendingNpc.sold and 'sold' or 'bought',
                     economy.item_name(id) or ('#' .. id),
                     economy.gil(per), economy.gil(math.abs(dg))))
@@ -1753,7 +1784,7 @@ ashita.events.register('text_in', 'text_in_handler', function(e)
     if e.injected == true then return end
     local ok, err = pcall(HandleText, e)
     if not ok then
-        print(chat.header('crafty'):append(chat.message('text handler error: ' .. tostring(err))))
+        print(chat.header('synthex'):append(chat.message('text handler error: ' .. tostring(err))))
     end
 end)
 
@@ -1761,7 +1792,7 @@ ashita.events.register('command', 'command_handler', function(e)
     local args = e.command:args()
     local cmd = args[1]
 
-    if cmd == nil or (cmd ~= '/crafty' and cmd ~= '/craft') then
+    if cmd == nil or (cmd ~= '/synthex' and cmd ~= '/sx') then
         return
     end
 

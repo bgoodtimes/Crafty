@@ -1,9 +1,10 @@
-# crafty
+# synthex
 
-A standalone port of the `crafty` tool from the **xitools** suite by lin, for
-[Ashita v4](https://www.ashitaxi.com/) on Final Fantasy XI / HorizonXI.
+Started as a standalone port of the `crafty` tool from the **xitools** suite by
+lin; grew into its own thing. For [Ashita v4](https://www.ashitaxi.com/) on
+Final Fantasy XI / HorizonXI. (Renamed from "crafty" in 3.0 — see the CHANGELOG.)
 
-`crafty` is a crafting skill tracker and recipe list:
+`synthex` is a crafting skill tracker and recipe list:
 - tracks your crafting skill levels as you gain skillups (it reads them from
   synth result packets, so it learns as you craft)
 - logs a history of your synths with result quality, skillups, and lost materials
@@ -11,24 +12,24 @@ A standalone port of the `crafty` tool from the **xitools** suite by lin, for
   the skill / key item requirements and how many of each ingredient you hold
 
 ## install
-Drop the `crafty` folder into `Game/addons/` and load it:
+Drop the `synthex` folder into `Game/addons/` and load it:
 
 ```
-/addon load crafty
+/addon load synthex
 ```
 
-Add `/addon load crafty` to your `scripts/default.txt` to load it on boot.
+Add `/addon load synthex` to your `scripts/default.txt` to load it on boot.
 
 ## usage
-- `/crafty` (or `/craft`) — toggle the main window
-- `/crafty config` — toggle the settings window
-- `/crafty clear` (or `/crafty cl`) — clear the synth history
-- `/crafty gil` — reset the session gil P/L baseline to right now
-- `/crafty prices` — print how many price lines are loaded and parsed
-- `/crafty pricetest <a purchase/sale line>` — dry-run the chat price learner
+- `/synthex` (or `/sx`) — toggle the main window
+- `/synthex config` — toggle the settings window
+- `/synthex clear` (or `/synthex cl`) — clear the synth history
+- `/synthex gil` — reset the session gil P/L baseline to right now
+- `/synthex prices` — print how many price lines are loaded and parsed
+- `/synthex pricetest <a purchase/sale line>` — dry-run the chat price learner
   against a line you paste, and print what it parsed (item, qty, gil, match)
-- `/crafty pricelog` — toggle. Appends every incoming chat line to
-  `config/addons/crafty/textlog.txt` (file only, no chat spam). Use it to see
+- `/synthex pricelog` — toggle. Appends every incoming chat line to
+  `config/addons/synthex/textlog.txt` (file only, no chat spam). Use it to see
   the exact wording/route of a purchase line that isn't being captured.
 
 ### editing skill levels
@@ -36,13 +37,13 @@ The tracker learns your levels from skill-up packets, but you can set them by ha
 two ways:
 - on the main window, click **edit** next to the *Crafting Skills* header to turn
   the read-out into eight input boxes; click **done** to go back
-- in `/crafty config` → *Crafting skills*, one labelled box per craft
+- in `/synthex config` → *Crafting skills*, one labelled box per craft
 
 Edits are clamped to 0–200. All settings (skills, overrides, favorites, toggles)
 autosave about a second after you stop editing, and again on unload.
 
 ## profit tracking
-Prices are a **shared master list** — `config/addons/crafty/prices.txt` — used
+Prices are a **shared master list** — `config/addons/synthex/prices.txt` — used
 by every character, not saved per-character. Price Imperial Cermet once on any
 alt and every other character already has it. (Before this, prices lived inside
 each character's own settings and had to be re-entered per alt; the first time
@@ -51,13 +52,13 @@ are folded into the shared list once, then its local copy is cleared.) The file
 sits next to the per-character settings folders, so it's easy to find and back
 up on its own.
 
-`/crafty config` → **Prices** lets you enter what materials and products are
+`/synthex config` → **Prices** lets you enter what materials and products are
 worth. Three ways in:
 - **per item** — a grid of every item any synth has touched (crystal,
   ingredients, product, losses); type the gil you buy/sell each for
 - **full list** — a `item name:gil` text box, one per line
 - **import / export** — read/write a `name:gil` file (bare filename resolves
-  under `config/addons/crafty/`) for merging in a market-scrape file or keeping
+  under `config/addons/synthex/`) for merging in a market-scrape file or keeping
   a backup; the shared list itself is `prices.txt` in that same folder
 - **learn from chat** (on by default, toggle in the same panel) — watches the
   game log for trade lines and prices from them:
@@ -71,13 +72,13 @@ worth. Three ways in:
   It strips the leading `the`/`a`/`an` and stack count, divides by the count, and
   updates that item's price. Crystals are always recognised; other items must be
   ones you've crafted with (or nameable by the resource DB). It prints what it
-  learned — `[crafty] bought bone arrow = 100g (npc, 300g total)` — and says once
-  per phrase when it can't match something. Test wording with `/crafty pricetest`.
+  learned — `[synthex] bought bone arrow = 100g (npc, 300g total)` — and says once
+  per phrase when it can't match something. Test wording with `/synthex pricetest`.
 
 Each ingredient line in a recipe shows its entered price (or `(no price)`), and
 the projection shows a partial `cost so far` with a count of how many inputs
 still need a price — so you can tell exactly what's missing instead of a blanket
-"set prices". `/crafty prices` prints how many price lines are loaded.
+"set prices". `/synthex prices` prints how many price lines are loaded.
 
 ## session gil
 Under the skill readout on the main window: your **start** gil, your gil **now**,
@@ -86,7 +87,7 @@ and the difference (green/red). No time or rate — just a running session total
 Read straight from inventory gil, so it counts every source — drops, vendors,
 AH, bazaar, quests. The start value is taken a couple of seconds after you're
 loaded in (so a zone-in transient never becomes the baseline) and resets on a
-character change or a logout/login. `/crafty gil` or the **reset** button
+character change or a logout/login. `/synthex gil` or the **reset** button
 re-baselines it to now.
 
 With prices entered:
@@ -99,12 +100,12 @@ Horizon changes some synth results from retail (different yield, sometimes a
 different item). Expand a recipe in **Recipe List**, click **edit** on the
 `output:` line, set the real yield (and optionally a different result item by
 name), and **save**. The override is stored per character in
-`config/addons/crafty/` and layered on top of the bundled recipe data — the big
+`config/addons/synthex/` and layered on top of the bundled recipe data — the big
 `data/*.lua` files are never rewritten. It applies everywhere: the list label,
 the cost/profit projection, and the live synth log. **reset to default** on the
-recipe, or the list in `/crafty config` → *Recipe output overrides*, removes it.
+recipe, or the list in `/synthex config` → *Recipe output overrides*, removes it.
 That panel also has **Import / Export** to a plain-text file (bare filename
-resolves under `config/addons/crafty/`) for sharing a set of Horizon fixes.
+resolves under `config/addons/synthex/`) for sharing a set of Horizon fixes.
 
 ### projections
 - each recipe in **Recipe List** shows:
@@ -148,7 +149,7 @@ character.
 ## appearance
 The UI uses the DarkGold palette and window styling from **Floos**, a sibling
 Ashita addon (itself adapted from [XIUI](https://github.com/tirem/XIUI)).
-Four themes are selectable in `/crafty config` → Appearance:
+Four themes are selectable in `/synthex config` → Appearance:
 DarkGold (default), OceanBlue, Plain, and GreenGold. Skill-requirement checks,
 ingredient counts, and synth results are colour-coded (green met / red missing).
 
@@ -157,14 +158,14 @@ Two more panels tune the *feel* on top of whichever theme is active:
   or Ashita's built-in **Agave** which needs no files) and a **Text Size**
   slider (75%–200%). The named fonts load straight from `C:\Windows\Fonts`, so
   nothing is bundled or downloaded; drop a same-named `.ttf` in
-  `crafty/assets/fonts/` to use your own copy instead. If a face fails to load
+  `synthex/assets/fonts/` to use your own copy instead. If a face fails to load
   it falls back to the default font and prints once to say so.
 - **Panel style** — background opacity, corner rounding, and border thickness
   sliders, plus a **reset to defaults** button. These apply on top of any theme,
   independent of which one is selected.
 
 ## license
-crafty is distributed under the **GNU General Public License v3.0** - see
+synthex is distributed under the **GNU General Public License v3.0** - see
 [LICENSE](LICENSE). That is inherited, not chosen: `libs/theme.lua` and
 `libs/fonts.lua` are derived from Floos, which is GPLv3 because it derives
 from XIUI. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for exactly
@@ -172,7 +173,7 @@ which files came from where.
 
 ## credit
 - Crafting logic, packet parsing, and recipe data from xitools by lin
-  (`crafty.lua`, `utils/packets.lua`, `utils/ffxi.lua`, `data/`).
+  (`synthex.lua`, `utils/packets.lua`, `utils/ffxi.lua`, `data/`).
 - Theme palettes and config styling from Floos / XIUI (`libs/theme.lua`).
 - Font loading (`libs/fonts.lua`) is adapted from Floos' `libs/fonts.lua`,
   pointed at the system font folder instead of bundled files.

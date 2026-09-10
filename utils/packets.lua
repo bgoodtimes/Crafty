@@ -1,7 +1,7 @@
 local bit = require('bit')
 
 -- Trimmed copy of xitools' packet parsers - only the synth-related packets that
--- crafty needs. Originally by lin.
+-- synthex needs. Originally by lin.
 
 local outboundStartSynth = {
     id = 0x096,
