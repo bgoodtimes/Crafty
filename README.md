@@ -2,7 +2,7 @@
 
 Started as a standalone port of the `craft` tool from the **xitools** suite by
 lin; grew into its own thing. For [Ashita v4](https://www.ashitaxi.com/) on
-Final Fantasy XI / HorizonXI. (Renamed from "crafty" in 3.0 — see the CHANGELOG.)
+Final Fantasy XI / HorizonXI. 
 
 `synthex` is a crafting skill tracker and recipe list:
 - tracks your crafting skill levels as you gain skillups (it reads them from
